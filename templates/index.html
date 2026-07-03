@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Clipper Downloader</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+        <h1 class="text-2xl font-bold text-center mb-2 text-red-500">✂️ YT Clipper</h1>
+        <p class="text-gray-400 text-xs text-center mb-6">Potong live stream panjang langsung lewat server online</p>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1 text-gray-300">Link Share YouTube</label>
+            <input type="text" id="ytUrl" placeholder="https://youtu.be/... atau https://youtube.com/..." 
+                   class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-red-500 text-sm">
+        </div>
+
+        <button id="btnCheck" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-semibold text-sm transition mb-4">
+            Cek Video
+        </button>
+
+        <div id="videoPreview" class="hidden mb-4 p-3 bg-gray-750 border border-gray-700 rounded-lg flex items-center gap-3">
+            <img id="thumb" src="" class="w-20 h-12 object-cover rounded">
+            <div class="overflow-hidden">
+                <p id="videoTitle" class="text-xs font-bold truncate"></p>
+                <p id="videoChannel" class="text-[10px] text-gray-400"></p>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2 text-gray-300">Pilih Mode Download</label>
+            <div class="flex gap-4">
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="mode" value="full" checked class="mr-2 accent-red-500"> Full Video
+                </label>
+                <label class="flex items-center text-sm cursor-pointer">
+                    <input type="radio" name="mode" value="clip" class="mr-2 accent-red-500"> Potong Klip
+                </label>
+            </div>
+        </div>
+
+        <div id="clipInputs" class="hidden grid grid-cols-2 gap-3 mb-4">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Waktu Mulai (JJ:MM:DD)</label>
+                <input type="text" id="startTime" value="00:00:00" class="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-center">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Waktu Selesai (JJ:MM:DD)</label>
+                <input type="text" id="endTime" value="00:00:10" class="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-center">
+            </div>
+        </div>
+
+        <button id="btnDownload" class="w-full bg-red-600 hover:bg-red-700 py-2.5 rounded-lg font-bold text-sm transition tracking-wide">
+            Mulai Download Klip
+        </button>
+        
+        <p id="statusMsg" class="text-center text-xs mt-3 text-yellow-400 hidden"></p>
+    </div>
+
+    <script>
+        // Logika Frontend untuk interaksi tombol dan kirim data ke backend
+        const modeRadios = document.querySelectorAll('input[name="mode"]');
+        const clipInputs = document.getElementById('clipInputs');
+        const btnCheck = document.getElementById('btnCheck');
+        const btnDownload = document.getElementById('btnDownload');
+        const statusMsg = document.getElementById('statusMsg');
+
+        modeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if(radio.value === 'clip') {
+                    clipInputs.classList.remove('hidden');
+                } else {
+                    clipInputs.classList.add('hidden');
+                }
+            });
+        });
+
+        btnCheck.addEventListener('click', async () => {
+            const url = document.getElementById('ytUrl').value;
+            if(!url) return alert('Masukkan URL terlebih dahulu');
+            
+            statusMsg.innerText = "Mengambil info video...";
+            statusMsg.classList.remove('hidden');
+            
+            try {
+                const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+                const data = await res.json();
+                if(data.error) throw new Error(data.error);
+                
+                document.getElementById('thumb').src = data.thumbnail;
+                document.getElementById('videoTitle').innerText = data.title;
+                document.getElementById('videoChannel').innerText = data.channel;
+                document.getElementById('videoPreview').classList.remove('hidden');
+                statusMsg.classList.add('hidden');
+            } catch (err) {
+                statusMsg.innerText = "Gagal: " + err.message;
+            }
+        });
+
+        btnDownload.addEventListener('click', () => {
+            const url = document.getElementById('ytUrl').value;
+            if(!url) return alert('Masukkan URL terlebih dahulu');
+            
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            let downloadUrl = `/api/download?url=${encodeURIComponent(url)}`;
+            
+            if(mode === 'clip') {
+                const start = document.getElementById('startTime').value;
+                const end = document.getElementById('endTime').value;
+                downloadUrl += `&start=${start}&end=${end}`;
+            } else {
+                downloadUrl += `&start=00:00:00&end=99:99:99`; // Akali durasi penuh
+            }
+            
+            statusMsg.innerText = "Server sedang memotong video... Jangan tutup halaman ini, file akan terunduh otomatis jika selesai.";
+            statusMsg.classList.remove('hidden');
+            
+            // Memicu download di browser HP
+            window.location.href = downloadUrl;
+        });
+    </script>
+</body>
+</html>
